@@ -26,48 +26,47 @@ class Extract(Thread):
         
         while success:
             success, jpgImage = cv2.imencode('.jpg',image)
-            fText = base64.b64encode(jpgImage)
-            self.oBuff.put(fText)
+            self.oBuff.put(jpgImage)
             success,image = vidcap.read()
             print("Reading frame {} {} " .format(count,success))
             count += 1
             
         print ("Extraction finished!")
-        self.exFin = 1
             
 class Convert(Thread):
     def __init__(self, oBuff, cBuff):
         Thread.__init__(self, daemon=False)
         self.oBuff = oBuff
+        self.cBuff = cBuff
         self.start()
     def run(self):
         count = 0
         while True:
             if not self.oBuff.empty():
-                frameAsText = self.oBuff.get()
-                rawImage = base64.b64decode(frameAsText)
-                jImage = np.asarray(bytearray(rawImage),dtype=np.uint8)
-                dImage = cv2.imdecode(jImage, cv2.IMREAD_UNCHANGED)
+                frame = self.oBuff.get()
+                dImage = cv2.imdecode(frame, cv2.IMREAD_UNCHANGED)
                 img = cv2.cvtColor(dImage, cv2.COLOR_BGR2GRAY)
                 
-                cv2.imshow("Sample", img)
-                if cv2.waitKey(42) and 0xFF == ord("q"):
-                    break
-                
-                # jpgImage = cv2.imencode('.jpg',img)
-                #fText = base64.b64encode(jpgImage)
-                #
+                self.cBuff.put(img)
                 print("Converted frame", count)
                 count += 1
-                
         print ("Conversion finished.")
             
 class Display(Thread):
-    def __init__(self, oBuff):
+    def __init__(self, cBuff):
         Thread.__init__(self, daemon=False)
+        self.cBuff = cBuff
+        self.start()
     def run(self):
-        pass
-
+        count = 0
+        while True:
+            print("Displaying frame", count)
+            img = self.cBuff.get()
+            cv2.imshow("Sample", img)
+            if cv2.waitKey(42) and 0xFF == ord("q"):
+                break
+            count += 1
+            
 filename = 'clip.mp4'
 outDir = 'frames'
 
@@ -77,3 +76,4 @@ if not os.path.exists(outDir):
 
 Extract(filename, buff1)
 Convert(buff1, buff2)
+Display(buff2)
