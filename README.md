@@ -1,4 +1,4 @@
-# Producer-Consumer
+# Producer-Consumer Lab
 This directory contains:
 ~~~
 * Scripts  provided by Dr. Freudenthal, including ExtractFrames,
@@ -8,6 +8,19 @@ displays frames.
 ~~~
 
 ## How It Works
+producerConsumer.py works using three concurrent threads: Extract, Convert,
+and Display.
+
+* Extract takes a video file and loads a series of frames. It encodes them and
+loads them into a queue.
+* Convert takes the frames loaded into a queue and desaturates them to grayscale
+- these are placed in a second queue.
+* Display takes frames from a queue and displays them with a 42ms delay.
+
+All of these threads runs concurrently, managed by counting semaphores.
+
+To start the program:
+
 ~~~
 * Start the GUI with the startx command.
 * Open the console.
@@ -22,8 +35,6 @@ documented. For full attributions, see COLLABORATIONS.md.
 ---
 
 # Original Instructions
-
-# Producer Consumer Lab
 
 For this lab you will implement a trivial producer-consumer system using
 python threads where all coordination is managed by counting and binary

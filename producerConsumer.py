@@ -5,10 +5,14 @@ from threading import Thread, Semaphore
 import cv2
 import queue
 
-block = Semaphore(1) # Handles blocking for extract-to-convert queue
-block2 = Semaphore(1) # Handles blocking for convert-to-display queue.
-buff1 = queue.Queue(10) # Extract-to-convert queue.
-buff2 = queue.Queue(10) # Convert-to-display queue.
+eBlock = Semaphore(1) # Init to 1 to ensure img is produced first! 
+cBlock = Semaphore(0) # Init to 0 so converter waits for extract.
+cBlock2 = Semaphore(1) # Init to 1 so grayscale img is produced first!
+dBlock = Semaphore(0) # Init to 0 so nothing is displayed 'till converter produced something.
+eFinished = 0 # A flag for when extraction is finished!
+
+conQueue = queue.Queue(10) # Extract-to-convert queue.
+dispQueue = queue.Queue(10) # Convert-to-display queue.
 
 # Extracts frames from mp4 file, encodes them as jpg, and places them in queue.
 class Extract(Thread):
@@ -18,6 +22,7 @@ class Extract(Thread):
         self.oBuff = oBuff
         self.start()
     def run (self):
+        global eFinished
         count = 0
         vidcap = cv2.VideoCapture(self.fileName)
         success,image = vidcap.read()
@@ -27,21 +32,18 @@ class Extract(Thread):
         while success:
             success, jpgImage = cv2.imencode('.jpg',image)
             
-            if self.oBuff.empty(): # Stop everyone else if you've got nothing for them!
-                block.acquire()
-                
+            eBlock.acquire() # Make sure it's okay to produce - acquire lock!
             self.oBuff.put(jpgImage)
-            
-            if not self.oBuff.empty(): #Let everyone run once there's something in the queue.
-                block.release()
+            cBlock.release() # Give permission to consume.
                 
             success,image = vidcap.read()
             print("Extracting frame {} {} " .format(count,success))
             count += 1
             
         print ("Extraction finished!")
+        eFinished = 1
 
-# Convert frames to grayscale. 
+# Convert frames to grayscale and places them in second queue. 
 class Convert(Thread):
     def __init__(self, oBuff, cBuff):
         Thread.__init__(self, daemon=False)
@@ -51,27 +53,21 @@ class Convert(Thread):
     def run(self):
         count = 0
         while True:
-            if not self.oBuff.empty():
-                frame = self.oBuff.get()
-                dImage = cv2.imdecode(frame, cv2.IMREAD_UNCHANGED) # Decode the frame.
-                img = cv2.cvtColor(dImage, cv2.COLOR_BGR2GRAY) # Make it gray!
+            cBlock.acquire() # Get permission to consume.
+            frame = self.oBuff.get()
+            eBlock.release() # Give permission to produce
+            
+            dImage = cv2.imdecode(frame, cv2.IMREAD_UNCHANGED) # Decode the frame.
+            img = cv2.cvtColor(dImage, cv2.COLOR_BGR2GRAY) # Make it gray!
 
-                # If you got nothing for the displayer, stop everything 'till you do!
-                if self.cBuff.empty():
-                    block2.acquire()
+            cBlock2.acquire() # Get permission to produce.
+            self.cBuff.put(img)
+            dBlock.release() # Give permission to consume.
                     
-                self.cBuff.put(img)
+            print("Converted frame", count)
+            count += 1
 
-                # When you got something, let everyone resume!
-                if not self.cBuff.empty():
-                    block2.release()
-                    
-                print("Converted frame", count)
-                count += 1
-                
-        print ("Conversion finished.")
-
-# Display the converted frames!
+# Display the converted frames in the second queue.
 class Display(Thread):
     def __init__(self, cBuff):
         Thread.__init__(self, daemon=False)
@@ -80,15 +76,19 @@ class Display(Thread):
     def run(self):
         count = 0
         while True:
+            dBlock.acquire() # Get permission to consume.
             print("Displaying frame", count)
             img = self.cBuff.get()
+            cBlock2.release() # Give permission to produce.
+
+            # Display the images as 24 fps.
             cv2.imshow("Sample", img)
             if cv2.waitKey(42) and 0xFF == ord("q"):
                 break
             count += 1
-            
-filename = 'clip.mp4'
 
-Display(buff2)
-Convert(buff1, buff2)
-Extract(filename, buff1)
+# Specify file and start the threads.
+filename = 'clip.mp4'
+Extract(filename, conQueue)
+Convert(conQueue, dispQueue)
+Display(dispQueue)
