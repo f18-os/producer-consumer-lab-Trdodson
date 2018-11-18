@@ -1,3 +1,28 @@
+# Producer-Consumer
+This directory contains:
+~~~
+* Scripts  provided by Dr. Freudenthal, including ExtractFrames,
+DisplayFrames, ConvertToGrayscale, and ExtractAndDisplay.
+* producerConsumer.py, a program that concurrently extracts, converts, and
+displays frames.
+~~~
+
+## How It Works
+~~~
+* Start the GUI with the startx command.
+* Open the console.
+* Run ./producerConsumer.py from the console.
+~~~
+
+## Attributions
+This assignment was prepared in a manner consistent with the instructor's
+requirements. All significant collaboration or guidance is clearly
+documented. For full attributions, see COLLABORATIONS.md.
+
+---
+
+# Original Instructions
+
 # Producer Consumer Lab
 
 For this lab you will implement a trivial producer-consumer system using
