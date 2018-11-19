@@ -1,15 +1,14 @@
 #! /usr/bin/env python3
-# A simple producer-consumer program - it extracts videos, converts them to grayscale, and then displays them. Some code from ExtractAndDisplay.py and ConvertToGrayscale.py. See COLLABORATIONS.md for details.  
+# A simple producer-consumer program - it extracts videos, converts them to grayscale, and then displays them. Some code from ExtractAndDisplay.py and ConvertToGrayscale.py. See COLLABORATIONS.md for full attributions.  
 
 from threading import Thread, Semaphore  
 import cv2
 from Q import Q
 
-eBlock = Semaphore(1) # Init to 1 to ensure img is produced first! 
-cBlock = Semaphore(0) # Init to 0 so converter waits for extract.
-cBlock2 = Semaphore(1) # Init to 1 so grayscale img is produced first!
-dBlock = Semaphore(0) # Init to 0 so nothing is displayed 'till converter produced something.
-eFinished = 0 # A flag for when extraction is finished!
+eBlock = Semaphore(1) # Init to 1 to initial frame is always produced first! 
+cBlock = Semaphore(0) # Init to 0 so converter blocks 'till producer releases it.
+cBlock2 = Semaphore(1) # Init to 1 so grayscale img is produced before display.
+dBlock = Semaphore(0) # Init to 0 so display blocks 'till converter releases it.
 
 conQueue = Q() # Extract-to-convert queue. Q object prints errors if exceeds 10 items.
 dispQueue = Q() # Convert-to-display queue.
@@ -22,8 +21,7 @@ class Extract(Thread):
         self.oBuff = oBuff
         self.start()
     def run (self):
-        global eFinished
-        count = 0
+        count = 0 # Count frames processed.
         vidcap = cv2.VideoCapture(self.fileName)
         success,image = vidcap.read()
         print("Extracting frame {} {} " .format(count,success))
@@ -41,7 +39,8 @@ class Extract(Thread):
             count += 1
             
         print ("Extraction finished!")
-        Q.put(-1)
+        cBlock.release() # Release the consumer once you're done!
+        self.oBuff.put(-1) # Put a "cut off point" in the queue!
 
 # Convert frames to grayscale and places them in second queue. 
 class Convert(Thread):
@@ -56,6 +55,9 @@ class Convert(Thread):
             cBlock.acquire() # Get permission to consume.
             frame = self.oBuff.get()
             eBlock.release() # Give permission to produce
+
+            if (frame is -1): # Nothing more to convert - stop!
+                break
             
             dImage = cv2.imdecode(frame, cv2.IMREAD_UNCHANGED) # Decode the frame.
             img = cv2.cvtColor(dImage, cv2.COLOR_BGR2GRAY) # Make it gray!
@@ -66,6 +68,10 @@ class Convert(Thread):
                     
             print("Converted frame", count)
             count += 1
+            
+        print("Conversion finished!")
+        dBlock.release() 
+        self.cBuff.put(-1) 
 
 # Display the converted frames in the second queue.
 class Display(Thread):
@@ -81,12 +87,17 @@ class Display(Thread):
             img = self.cBuff.get()
             cBlock2.release() # Give permission to produce.
 
-            # Display the images as 24 fps.
+            if (img is -1): # Nothing more to display - stop!
+                break
+            
+            # Display the images - 24 fps.
             cv2.imshow("Sample", img)
             if cv2.waitKey(42) and 0xFF == ord("q"):
                 break
             count += 1
-
+        print("Finished displaying!")
+        cv2.destroyAllWindows()
+        
 # Specify file and start the threads.
 filename = 'clip.mp4'
 Extract(filename, conQueue)

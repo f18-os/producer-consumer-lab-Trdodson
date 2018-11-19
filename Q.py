@@ -1,4 +1,4 @@
-#A simple, fixed buffer for producerConsumer.py provided by instructor.
+#A simple, fixed buffer for producerConsumer.py provided by instructor. Made it cause issues if you try to put more than 10 items in: very rough.
 
 class Q:
     def __init__(self, initArray = [], maxSize = 10):

@@ -17,14 +17,14 @@ loads them into a queue.
 - these are placed in a second queue.
 * Display takes frames from a queue and displays them with a 42ms delay.
 
-All of these threads runs concurrently, managed by counting semaphores.
+All of these threads run concurrently, managed by counting semaphores.
 
 To start the program:
 
 ~~~
 * Start the GUI with the startx command.
 * Open the console.
-* Run ./producerConsumer.py from the console.
+* Run ./producerConsumer.py.
 ~~~
 
 ## Attributions
