@@ -8,9 +8,9 @@
   ExtractAndDisplay.py
   ConvertToGrayscale.py
   ~~~
-*
-  https://www.geeksforgeeks.org/producer-consumer-solution-using-semaphores-java/
+* https://www.geeksforgeeks.org/producer-consumer-solution-using-semaphores-java/
   - A java solution for producer-consumer involving semaphores. This solution
   helped me realize how to properly initialize my semaphores so that no thread
   consumes nor produces at the wrong time (i.e. consuming when nothing is
   in the queue, or producing when queue is full.)
+* Q.py is a custome queue class provided by Dr. Freudenthal.

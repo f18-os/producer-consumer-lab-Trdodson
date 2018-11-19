@@ -3,7 +3,7 @@
 
 from threading import Thread, Semaphore  
 import cv2
-import queue
+from Q import Q
 
 eBlock = Semaphore(1) # Init to 1 to ensure img is produced first! 
 cBlock = Semaphore(0) # Init to 0 so converter waits for extract.
@@ -11,8 +11,8 @@ cBlock2 = Semaphore(1) # Init to 1 so grayscale img is produced first!
 dBlock = Semaphore(0) # Init to 0 so nothing is displayed 'till converter produced something.
 eFinished = 0 # A flag for when extraction is finished!
 
-conQueue = queue.Queue(10) # Extract-to-convert queue.
-dispQueue = queue.Queue(10) # Convert-to-display queue.
+conQueue = Q() # Extract-to-convert queue. Q object prints errors if exceeds 10 items.
+dispQueue = Q() # Convert-to-display queue.
 
 # Extracts frames from mp4 file, encodes them as jpg, and places them in queue.
 class Extract(Thread):
@@ -41,7 +41,7 @@ class Extract(Thread):
             count += 1
             
         print ("Extraction finished!")
-        eFinished = 1
+        Q.put(-1)
 
 # Convert frames to grayscale and places them in second queue. 
 class Convert(Thread):
